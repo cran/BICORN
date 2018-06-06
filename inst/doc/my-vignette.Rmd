@@ -1,0 +1,105 @@
+---
+title: "An Introduction to BICORN"
+author: "Xi Chen"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{An Introduction to BICORN}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+BICORN package is developed to infer de novo cis-regulatory modules by integrating prior transcription factor binding information and gene expression data. 
+
+## Loading prior bindings and gene expression data
+
+To run BICORN analysis, users need to provide a prior binding file and a gene expression file.
+
+The prior binding file should be a tab-seperated text file:
+
+1). The first column of this file must be official gene symbols. They can be redundant considering that one gene's promoter or enhancer region can be partitioned into several bins and co-regulation of binding events falling into each bin rather than the whole region is studied.
+
+2). The column names (row 1, column B, C, ...) are TF symbols and should be unique;
+
+3). Each unit must be either 1 (binding) or 0 (non-binding). 
+
+
+```{r,eval=F}
+#Load the binary binding network 
+Binding_matrix <- as.matrix(read.table('path_to_prior_bindings/prior_bidnings.txt', row.names = 1, header= TRUE))
+
+#Extract TF symbols
+Binding_TFs = colnames(Binding_matrix)
+
+#Extract Gene symbols (can be redundant)
+Binding_genes = rownames(Binding_matrix)
+
+```
+
+ 
+The gene expression data file should be a tab-seperated text file:
+
+1). The row names of the file should be official gene symbols and MUST be unique;
+
+2). The column names (row 1, column B, C, ...) are expression sample names;
+
+3). Each gene should be properly normalized with 0 mean and standard deviation across all samples.
+
+
+```{r,eval=F}
+#Load normalized gene expression data
+Exp_data <- as.matrix(read.table('path_to_gene_expression/gene_expression.txt', row.names = 1, header= TRUE))
+
+#Extract gene symbols
+Exp_genes=rownames(Exp_data)
+
+```
+ 
+
+
+To load BICORN demo data, use the command below:
+
+```{r,eval = F}
+library(BICORN)
+
+data(sample.input)
+```
+
+
+## Initializing BICORN
+
+BICORN will pre-process the loaded data by assignning prior bindings to target genes and extracting candidate modules. The minimum number of target genes **'Minimum_gene_per_module_regulate'** must be provided to filter candidate modules.
+
+```{r,eval = F}
+# Integerate the binary binding network and gene expression data
+BICORN_input<-data_integration(Binding_matrix, Binding_TFs, Binding_genes, Exp_data, Exp_genes, Minimum_gene_per_module_regulate = 2)
+```
+
+
+## Running BICORN
+
+To run key functions of BICORN, two parameters should be provided to control the sampling process. **'L'** defines the total rounds of Gibbing samplings and **'output_threshold'** defines the initial burning time. 
+
+```{r,eval = F}
+
+# Infer cis-regulatory modules and their target genes
+BICORN_output<-BICORN(BICORN_input, L =100, output_threshold = 10)
+
+```
+
+
+## BICORN outputs
+
+A list of cis-regulotary modules (non-ranked), a posterior module-gene regulatory network (genes as rows and modules as columns, the order of mudules the same as the cis-regulatory module file), and a posterior TF-gene regulatory network (genes as rows and TFs as columns) are printed into following files.  
+
+```{r,eval = F}
+
+# Output candidate cis-regulatory modules
+write.csv(BICORN_output$Modules, file = 'BICORN_cis_regulatory_modules.csv', quote = FALSE)
+
+# Output a weighted module-gene regulatory network
+write.csv(BICORN_output$Posterior_module_gene_regulatory_network, file = 'BICORN_module2target_regulatory_network.csv', quote = FALSE)
+
+# Output a weighted TF-gene regulatory network
+write.csv(BICORN_output$Posterior_TF_gene_regulatory_network, file = 'BICORN_TF2gene_regulatory_network.csv', quote = FALSE)
+```
